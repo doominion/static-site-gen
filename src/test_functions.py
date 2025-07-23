@@ -1,6 +1,10 @@
 import unittest
-from functions import split_nodes_delimiter, extract_markdown_links, extract_markdown_images, split_nodes_image, split_nodes_link, text_to_textnodes
+from functions import block_to_html_node, split_nodes_delimiter, extract_markdown_links, extract_markdown_images, split_nodes_image, split_nodes_link, text_to_textnodes, markdown_to_blocks
 from textnode import TextNode, TextType
+from blocktype import BlockType
+from functions import block_to_block_type
+from functions import markdown_to_html_node
+from functions import extract_title
 
 class TestSplitNodesDelimiter(unittest.TestCase):
     def test_basic_split(self):
@@ -455,3 +459,193 @@ class TestTextToTextNodes(unittest.TestCase):
             TextNode("Here ", TextType.TEXT),
             TextNode(" is empty.", TextType.TEXT),
         ])
+
+class TestMarkdownToBlocks(unittest.TestCase):
+    def test_single_block(self):
+        markdown = "This is a single block."
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["This is a single block."])
+
+    def test_multiple_blocks(self):
+        markdown = "Block one.\n\nBlock two.\n\nBlock three."
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["Block one.", "Block two.", "Block three."])
+
+    def test_blocks_with_extra_spaces(self):
+        markdown = "  Block one.  \n\n   Block two.   \n\nBlock three.   "
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["Block one.", "Block two.", "Block three."])
+
+    def test_empty_string(self):
+        markdown = ""
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, [])
+
+    def test_only_whitespace(self):
+        markdown = "   \n\n   "
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, [])
+
+    def test_blocks_with_multiple_newlines(self):
+        markdown = "Block one.\n\n\n\nBlock two.\n\n\nBlock three."
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["Block one.", "Block two.", "Block three."])
+
+    def test_block_with_internal_newlines(self):
+        markdown = "Block one line 1.\nBlock one line 2.\n\nBlock two."
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["Block one line 1.\nBlock one line 2.", "Block two."])
+
+    def test_leading_and_trailing_newlines(self):
+        markdown = "\n\nBlock one.\n\nBlock two.\n\n"
+        result = markdown_to_blocks(markdown)
+        self.assertEqual(result, ["Block one.", "Block two."])
+
+    def test_markdown_to_blocks(self):
+        md = """
+This is **bolded** paragraph
+
+This is another paragraph with _italic_ text and `code` here
+This is the same paragraph on a new line
+
+- This is a list
+- with items
+            """
+        blocks = markdown_to_blocks(md)
+        self.assertEqual(
+            blocks,
+            [
+                "This is **bolded** paragraph",
+                "This is another paragraph with _italic_ text and `code` here\nThis is the same paragraph on a new line",
+                "- This is a list\n- with items",
+            ],
+        )
+
+class TestBlockToBlockType(unittest.TestCase):
+    def setUp(self):
+        self.BlockType = BlockType
+        self.block_to_block_type = block_to_block_type
+
+    def test_heading_level_1(self):
+        self.assertEqual(self.block_to_block_type("# Heading"), self.BlockType.HEADING)
+
+    def test_heading_level_2(self):
+        self.assertEqual(self.block_to_block_type("## Heading"), self.BlockType.HEADING)
+
+    def test_heading_level_3(self):
+        self.assertEqual(self.block_to_block_type("### Heading"), self.BlockType.HEADING)
+
+    def test_heading_level_4(self):
+        self.assertEqual(self.block_to_block_type("#### Heading"), self.BlockType.HEADING)
+
+    def test_heading_level_5(self):
+        self.assertEqual(self.block_to_block_type("##### Heading"), self.BlockType.HEADING)
+
+    def test_heading_level_6(self):
+        self.assertEqual(self.block_to_block_type("###### Heading"), self.BlockType.HEADING)
+
+    def test_code_block(self):
+        self.assertEqual(self.block_to_block_type("```code block```"), self.BlockType.CODE)
+
+    def test_quote(self):
+        self.assertEqual(self.block_to_block_type("> This is a quote"), self.BlockType.QUOTE)
+
+    def test_unordered_list(self):
+        self.assertEqual(self.block_to_block_type("- item 1"), self.BlockType.UNORDERED_LIST)
+
+    def test_ordered_list_single_digit(self):
+        self.assertEqual(self.block_to_block_type("1. item 1"), self.BlockType.ORDERED_LIST)
+
+    def test_ordered_list_multi_digit(self):
+        self.assertEqual(self.block_to_block_type("12. item 12"), self.BlockType.ORDERED_LIST)
+
+    def test_paragraph(self):
+        self.assertEqual(self.block_to_block_type("Just a paragraph."), self.BlockType.PARAGRAPH)
+
+    def test_non_matching_block(self):
+        self.assertEqual(self.block_to_block_type("random text"), self.BlockType.PARAGRAPH)
+
+
+
+class TestBlockToHtmlNodeFunction(unittest.TestCase):
+    def test_paragraph_block(self):
+        block = "This is a paragraph with **bold** text."
+        node = block_to_html_node(block)
+        self.assertEqual(node.to_html(), "<p>This is a paragraph with <b>bold</b> text.</p>")
+
+    def test_heading_block_level_1(self):
+        block = "# Heading 1"
+        node = block_to_html_node(block)
+        self.assertEqual(node.to_html(), "<h1>Heading 1</h1>")
+
+    def test_heading_block_level_3(self):
+        block = "### Heading 3"
+        node = block_to_html_node(block)
+        self.assertEqual(node.to_html(), "<h3>Heading 3</h3>")
+
+    def test_code_block(self):
+        block = "```print('Hello')\nprint('World')```"
+        node = block_to_html_node(block)
+        self.assertEqual(
+            node.to_html(),
+            "<pre><code>print('Hello')\nprint('World')</code></pre>"
+        )
+
+    def test_ordered_list_block(self):
+        block = "1. First item\n2. Second item\n3. Third item"
+        node = block_to_html_node(block)
+        self.assertEqual(
+            node.to_html(),
+            "<ol><li>First item</li><li>Second item</li><li>Third item</li></ol>"
+        )
+
+    def test_unordered_list_block(self):
+        block = "- Apple\n- Banana\n- Cherry"
+        node = block_to_html_node(block)
+        self.assertEqual(
+            node.to_html(),
+            "<ul><li>Apple</li><li>Banana</li><li>Cherry</li></ul>"
+        )
+
+    def test_quote_block(self):
+        block = "> This is a quote\n> with two lines"
+        node = block_to_html_node(block)
+        self.assertEqual(
+            node.to_html(),
+            "<blockquote>This is a quote with two lines</blockquote>"
+        )
+
+
+class TestExtractTitle(unittest.TestCase):
+    def test_title_at_start(self):
+        md = "# My Title\n\nSome content here."
+        self.assertEqual(extract_title(md), "My Title")
+
+    def test_title_with_extra_spaces(self):
+        md = "#    Title With Spaces    \n\nOther text"
+        self.assertEqual(extract_title(md), "Title With Spaces")
+
+    def test_title_with_markdown_features(self):
+        md = "# **Bold Title**\n\nParagraph"
+        self.assertEqual(extract_title(md), "**Bold Title**")
+
+    def test_title_not_first_block(self):
+        md = "Paragraph\n\n# Actual Title\n\nAnother block"
+        self.assertEqual(extract_title(md), "Actual Title")
+
+    def test_title_with_multiple_blocks(self):
+        md = "# Title1\n\nSome text\n\n# Title2\n\nMore text"
+        self.assertEqual(extract_title(md), "Title1")
+
+    def test_no_title_raises_exception(self):
+        md = "No heading here.\n\nJust text."
+        with self.assertRaises(Exception):
+            extract_title(md)
+
+    def test_title_with_leading_and_trailing_newlines(self):
+        md = "\n\n# Heading Title\n\nContent"
+        self.assertEqual(extract_title(md), "Heading Title")
+
+    def test_title_with_special_characters(self):
+        md = "# Title! @ #$%^&*()\n\nBody"
+        self.assertEqual(extract_title(md), "Title! @ #$%^&*()")
