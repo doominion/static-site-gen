@@ -23,7 +23,7 @@ def copy_content(source, destination):
             shutil.copy(os.path.join(source, item), os.path.join(destination, item))
 
 def generate_page(from_path, template_path, dest_path):
-    print(f"Generating page from {from_path} to {dest_path} using template {template_path}")
+    #print(f"Generating page from {from_path} to {dest_path} using template {template_path}")
     markdown = None
     with open(from_path, 'r') as f:
         markdown = f.read()
@@ -36,8 +36,8 @@ def generate_page(from_path, template_path, dest_path):
 
     html = template.replace("{{ Content }}", htmlNode)
     html = html.replace("{{ Title }}", title)
-    html = html.replace("href=\"/", "href=\"" + dest_path)
-    html = html.replace("src=\"/", "src=\"" + dest_path)
+    # html = html.replace("href=\"/", "href=\"" + dest_path)
+    # html = html.replace("src=\"/", "src=\"" + dest_path)
     
     if not os.path.exists(dest_path):
         if os.path.isdir(dest_path):
@@ -60,6 +60,7 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
             generate_pages_recursive(item_path, template_path, dest_path)
         else:
             dest_path = os.path.join(dest_dir_path, item.replace('.md', '.html'))
+            print(f"Generating page for {item_path} to {dest_path}")
             generate_page(item_path, template_path, dest_path)
         
 main()
