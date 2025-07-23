@@ -1,12 +1,13 @@
-from textnode import TextNode
-import os, shutil
+import os, shutil, sys
 from functions import extract_title, markdown_to_html_node
 
 def main():
-    copy_content("./static", "./public")
-    generate_pages_recursive("./content", "./template.html", "./public")
+    basepath = "./"
+    if len(sys.argv) > 1:
+        basepath = sys.argv[1]
+    copy_content("static", "docs")
+    generate_pages_recursive("content", "template.html", basepath)
 
-# write recursive function to copy the content from source directory to destination directory
 def copy_content(source, destination):
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -26,7 +27,6 @@ def generate_page(from_path, template_path, dest_path):
     markdown = None
     with open(from_path, 'r') as f:
         markdown = f.read()
-
     htmlNode = markdown_to_html_node(markdown).to_html()
     title = extract_title(markdown)
 
@@ -36,6 +36,8 @@ def generate_page(from_path, template_path, dest_path):
 
     html = template.replace("{{ Content }}", htmlNode)
     html = html.replace("{{ Title }}", title)
+    html = html.replace("href=\"/", "href=\"" + dest_path)
+    html = html.replace("src=\"/", "src=\"" + dest_path)
     
     if not os.path.exists(dest_path):
         if os.path.isdir(dest_path):
@@ -47,6 +49,10 @@ def generate_page(from_path, template_path, dest_path):
         f.write(html)
 
 def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+    # working_directory = os.getcwd()
+    # content_dir = os.path.join(working_directory, dir_path_content)
+    # dest_dir = os.path.join(working_directory, dest_dir_path)
+    # fullpath = os.path.join(working_directory, dir_path_content)
     for item in os.listdir(dir_path_content):
         item_path = os.path.join(dir_path_content, item)
         if os.path.isdir(item_path):
